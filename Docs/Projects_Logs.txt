@@ -79,4 +79,10 @@ Phase 5 :
     --max-chunks 5
 
 Phase 6 : 
+    Purpose : Synthesise and create the final answer 
+    1) PYTHONPATH=src python src/phase6_runner.py \
+  --inputs ../Phase_5/outputs/model_claims_llama_with_verification.json ../Phase_5/outputs/model_claims_granite_with_verification.json \
+  --output-dir outputs
+
+Phase 6 : 
     Purpose : IEEE Documentation 
