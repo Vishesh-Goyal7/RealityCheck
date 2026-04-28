@@ -84,5 +84,9 @@ Phase 6 :
   --inputs ../Phase_5/outputs/model_claims_llama_with_verification.json ../Phase_5/outputs/model_claims_granite_with_verification.json \
   --output-dir outputs
 
+Live_Console (In the codebase folder) : 
+    1) source venv/bin/activate
+    2) python Live_Console/src/realitycheck_console.py --model granite
+
 Phase 6 : 
     Purpose : IEEE Documentation 
