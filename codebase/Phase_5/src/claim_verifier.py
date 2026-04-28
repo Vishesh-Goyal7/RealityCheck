@@ -355,6 +355,10 @@ def support_cue_reason_v2(claim: str, evidence: str) -> Tuple[bool, str]:
     if ("germany" in c or "euro" in c or "euros" in c) and ("norway" in c or "krone" in c or "kroner" in c):
         if "germany" in e and "euro" in e and "norway" in e and ("krone" in e or "kroner" in e):
             return True, "multi_country_currency_direct_support"
+        if "germany" in c and ("euro" in c or "euros" in c) and "germany" in e and any(x in e for x in ["eurozone", "the euro", "currency, the euro", "currency the euro", "introduced the common european union currency"]):
+            return True, "germany_currency_support"
+        if "norway" in c and ("krone" in c or "kroner" in c) and ("norwegian krone" in e or "currency of norway" in e):
+            return True, "norway_currency_support"
         if ("euro" in c and ("krone" in c or "kroner" in c)) and ("norwegian krone" in e or "currency of norway" in e):
             return True, "norway_currency_support"
 
@@ -453,6 +457,8 @@ def reasoning_claim_text(evidence_result: Dict[str, Any], sentence_text: str) ->
     """
     st = (sentence_text or "").strip()
     eq = str(evidence_result.get("evidence_query", "") or "").strip()
+    if not eq and evidence_result.get("question"):
+        eq = f"{evidence_result.get('question')} {st}".strip()
     if not eq:
         return st
     toks = _tokens(st)
@@ -814,8 +820,32 @@ class ClaimVerifier:
     def verify_record(self, record: Dict[str, Any]) -> Dict[str, Any]:
         verified = deepcopy(record)
         verification_results: List[Dict[str, Any]] = []
+
+        # Phase 4 evidence_results do not always carry the original Phase 3
+        # evidence_query. That field is essential for short answers like
+        # "Euros and kroner", because the standalone answer loses the
+        # question context: Germany + Norway. Reattach claim metadata by
+        # claim_id before verification so reasoning_claim_text() can use it.
+        claims_by_id = {
+            str(claim.get("claim_id")): claim
+            for claim in (record.get("claims", []) or [])
+            if claim.get("claim_id") is not None
+        }
+
         for evidence_result in record.get("evidence_results", []) or []:
-            verification_results.append(self.verify_claim(evidence_result))
+            enriched_evidence_result = deepcopy(evidence_result)
+            claim_id = str(enriched_evidence_result.get("claim_id", ""))
+            source_claim = claims_by_id.get(claim_id, {})
+
+            for key in ("evidence_query", "metadata", "importance"):
+                if not enriched_evidence_result.get(key) and source_claim.get(key):
+                    enriched_evidence_result[key] = source_claim.get(key)
+
+            if record.get("question") and not enriched_evidence_result.get("question"):
+                enriched_evidence_result["question"] = record.get("question")
+
+            verification_results.append(self.verify_claim(enriched_evidence_result))
+
         verified["verification_results"] = verification_results
         verified["verification_summary"] = summarize_verification_results(verification_results)
         return verified
