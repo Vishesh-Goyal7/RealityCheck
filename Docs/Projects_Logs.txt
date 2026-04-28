@@ -1,0 +1,77 @@
+Phase 1 (March 14):
+    Purpose : Benchmark dataset, LLM and Retrieval source locking
+    1) Benchmark dataset : Truthful QA
+    2) LLMs : WatsonX AI (Mistral AI + GPT)
+    3) Retrieval source : Wikipedia
+    4) Pipeline : 
+        Take question from Truthful QA -> Ask GPT and Mistral to generate answer -> Extract factual claims -> Retrieve wikipedia evidence -> Compare claim vs evidence -> Flag hallucinated claims -> Rewrite hallucinated claims -> Score original vs rewritten answer
+
+    5) Hallucination detection logic : 
+        5.1) Evidence relevance : How relevant is wikipedia retrieved chunk to the model generated answer
+        5.2) Support / Contradiction score 
+    
+    6) Claim extraction module : 
+        6.1) Split LLM output into sentences
+        6.2) Apply Claim worthiness filter
+        6.3) Keep only factual sentences for Retrieval testing
+    
+    7) Retrieval module : 
+        7.1) Query wikipedia 
+        7.2) Chunk page into sections
+        7.3) Rank them by similarity 
+        7.4) Keep top k relevant passages
+    
+    8) Correction Module : 
+        8.1) Ask LLM to rewrite answer from the corrected data retrieved from wikipedia
+    
+    Decision Engine : 
+        IF relevance < threshold_r
+            → label = INSUFFICIENT
+
+        ELSE:
+            IF contradiction_score > threshold_c
+                → label = CONTRADICTED
+
+            ELSE IF support_score > threshold_s
+                → label = SUPPORTED
+
+            ELSE
+                → label = INSUFFICIENT
+
+Phase 2 (March 15):
+    Pupose : Prepare the data and build the experiment skeleton.
+    1) Going to use OpenAI's gpt-oss-120b and Mistral's mistral-medium-2505 model for testing the LLM hallucination
+    2) The experiment run is working. The model can randomly take 20 questions from the TruthfulQA dataset and run it successfully on both GPT and Mistral models to find out the answer as given by LLM.
+    2.1) PYTHONPATH=src python src/experiment_runner.py --model llama --sample-size 20 --seed 15
+    2.2) PYTHONPATH=src python src/experiment_runner.py --model mistral --sample-size 20 --seed 15
+    2.3) PYTHONPATH=src python src/experiment_runner.py --model granite --sample-size 20 --seed 15
+    3) The next part of this phase involves a claim extraction module to find out the facts that are being stated by the LLMs to check them against sources for their relevance. 
+
+Phase 3 : 
+    Purpose : Build the core module that flags whether a claim or answer contains hallucination.
+    1) PYTHONPATH=src python src/phase3_runner.py --input ../Phase_2/outputs/llama_20_chatfixed.json --output outputs/model_claims_llama.json
+    2) PYTHONPATH=src python src/phase3_runner.py --input ../Phase_2/outputs/mistral_20_chatfixed.json --output outputs/model_claims_mistral.json
+    3) PYTHONPATH=src python src/phase3_runner.py --input ../Phase_2/outputs/granite_20_chatfixed.json --output outputs/model_claims_granite.json
+
+Phase 4 : 
+    Purpose : "Nice, it found the lie” -> “good, now fix it”
+    1) export REALITYCHECK_USER_AGENT="RealityCheck/0.7 (student research project; contact: your_email@example.com)"
+    2) export REALITYCHECK_WIKI_DELAY=2.5
+    3) export REALITYCHECK_MAX_QUERIES_PER_CLAIM=3
+    4) export REALITYCHECK_MAX_429_PER_CLAIM=2
+    5) PYTHONPATH=src python src/phase4_runner.py \
+        --inputs ../Phase_3/outputs/model_claims_llama.json ../Phase_3/outputs/model_claims_granite.json \
+        --output-dir outputs \
+        --top-pages 3 \
+        --candidate-pages 8 \
+        --top-chunks 5 \
+        (--truthfulqa-data ../Phase_2/data/truthfulqa_processed.json)
+
+Phase 5 : 
+    Purpose : Turn modules into one coherent system and stress test.
+    1) PYTHONPATH=src python src/phase5_runner.py \
+  --inputs ../Phase_4/outputs/model_claims_llama_with_evidence_final.json ../Phase_4/outputs/model_claims_mistral_with_evidence_final.json \
+  --output-dir outputs
+
+Phase 6 : 
+    Purpose : IEEE Documentation 

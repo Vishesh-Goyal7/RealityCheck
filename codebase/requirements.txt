@@ -1,0 +1,10 @@
+pandas>=2.0.0
+python-dotenv>=1.0.0
+ibm-watsonx-ai>=1.1.0
+requests>=2.32.3
+requests 
+sentence-transformers 
+torch 
+numpy
+tqdm
+beautifulsoup4>=4.12.0

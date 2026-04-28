@@ -1,0 +1,5 @@
+.env
+/Database/truthfulqa_processed
+venv
+*.json
+*.jsonl
