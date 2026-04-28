@@ -70,8 +70,13 @@ Phase 4 :
 Phase 5 : 
     Purpose : Turn modules into one coherent system and stress test.
     1) PYTHONPATH=src python src/phase5_runner.py \
-  --inputs ../Phase_4/outputs/model_claims_llama_with_evidence_final.json ../Phase_4/outputs/model_claims_mistral_with_evidence_final.json \
+  --inputs ../Phase_4/outputs/model_claims_llama_with_evidence_final.json ../Phase_4/outputs/model_claims_granite_with_evidence_final.json \
   --output-dir outputs
+    2) Optional : 
+    --support-threshold 0.65 \
+    --contradiction-threshold 0.65 \
+    --min-evidence-score 0.52 \
+    --max-chunks 5
 
 Phase 6 : 
     Purpose : IEEE Documentation 
