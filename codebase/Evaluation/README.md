@@ -1,122 +1,85 @@
-# RealityCheck Phase 7 Evaluation
+# RealityCheck Phase 7 — Semantic Evaluation
 
-This module evaluates whether RealityCheck improves raw LLM answers using TruthfulQA ground truth.
+This phase evaluates whether RealityCheck improves answer truthfulness over the raw LLM output.
 
-It compares:
+It compares each answer against TruthfulQA reference answers using semantic similarity, not just word overlap.
 
-- `llm_original_answer`
-- `realitycheck_corrected_answer`
+## Inputs
 
-against TruthfulQA `correct_answers` and `incorrect_answers`.
+1. Phase 6 corrected answer files, for example:
+   - `../Phase_6/outputs/model_claims_llama_with_corrected_answers.json`
+   - `../Phase_6/outputs/model_claims_granite_with_corrected_answers.json`
 
-## Folder placement
+2. A TruthfulQA reference file from Phase 2 containing:
+   - `id` or `question`
+   - `correct_answers`
+   - `incorrect_answers`
 
-Place this folder inside your `codebase/`:
+CSV TruthfulQA exports are also supported if they contain columns like:
+- `Question`
+- `Best Answer`
+- `Correct Answers`
+- `Incorrect Answers`
 
-```text
-codebase/
-  Phase_1/
-  Phase_2/
-  Phase_3/
-  Phase_4/
-  Phase_5/
-  Phase_6/
-  Phase_7_Evaluation/
+## Install
+
+From your main `codebase` folder:
+
+```bash
+source venv/bin/activate
+pip install sentence-transformers scikit-learn numpy pandas
 ```
 
-## Expected inputs
+If embeddings fail, the script automatically falls back to lexical similarity. You can also force fallback:
 
-1. Phase 6 output files, for example:
-
-```text
-../Phase_6/outputs/model_claims_llama_with_corrected_answers.json
-../Phase_6/outputs/model_claims_granite_with_corrected_answers.json
+```bash
+--disable-embeddings
 ```
-
-2. TruthfulQA ground-truth file from Phase 2 or original dataset.
-
-Supported formats:
-
-- `.json`
-- `.jsonl`
-- `.csv`
-
-The ground-truth file should contain:
-
-- question ID if available: `id`, `question_id`, `qid`, `tqa_id`, or `sample_id`
-- question text: `question` or `Question`
-- correct answers: `correct_answers`, `Correct Answers`, `Best Answer`, etc.
-- incorrect answers: `incorrect_answers`, `Incorrect Answers`, etc.
 
 ## Run
 
-From `codebase/Phase_7_Evaluation`:
-
 ```bash
-PYTHONPATH=src python src/evaluate_realitycheck.py \
-  --phase6-inputs \
-    ../Phase_6/outputs/model_claims_llama_with_corrected_answers.json \
-    ../Phase_6/outputs/model_claims_granite_with_corrected_answers.json \
-  --truthfulqa ../Phase_2/outputs/truthfulqa_eval_100.json \
-  --output-dir outputs \
-  --count-probable
-```
-
-If your TruthfulQA file is CSV:
-
-```bash
-PYTHONPATH=src python src/evaluate_realitycheck.py \
-  --phase6-inputs ../Phase_6/outputs/model_claims_llama_with_corrected_answers.json \
-  --truthfulqa ../Phase_2/data/TruthfulQA.csv \
+PYTHONPATH=src python src/phase7_runner.py \
+  --phase6-inputs ../Phase_6/outputs/model_claims_llama_with_corrected_answers.json ../Phase_6/outputs/model_claims_granite_with_corrected_answers.json \
+  --truth-reference ../Phase_2/outputs/truthfulqa_processed.json \
   --output-dir outputs
 ```
 
-## Optional semantic evaluation
-
-If `sentence-transformers` is installed, you can use semantic similarity too:
-
-```bash
-PYTHONPATH=src python src/evaluate_realitycheck.py \
-  --phase6-inputs ../Phase_6/outputs/model_claims_llama_with_corrected_answers.json \
-  --truthfulqa ../Phase_2/outputs/truthfulqa_eval_100.json \
-  --output-dir outputs \
-  --use-semantic \
-  --count-probable
-```
-
-If the model is not available, the script automatically falls back to lexical scoring.
+Adjust `--truth-reference` to whatever your Phase 2 processed TruthfulQA reference file is called.
 
 ## Outputs
 
-The script creates:
+- `outputs/phase7_summary.json`
+- `outputs/phase7_detailed_results.json`
+- `outputs/phase7_detailed_results.csv`
+- `outputs/phase7_report.md`
 
-```text
-outputs/
-  evaluation_summary.json
-  evaluation_records.csv
-  evaluation_report.md
-```
+## Main Metrics
 
-## Metrics generated
+For each model:
 
-### Answer-level metrics
-
-- Raw LLM answer accuracy
-- RealityCheck answer accuracy
-- Absolute accuracy gain
-- Relative accuracy gain
+- Raw answer semantic accuracy
+- RealityCheck answer semantic accuracy
+- Average raw truth score
+- Average corrected truth score
+- Average truth score delta
 - Wrong-answer fix rate
 - Overcorrection rate
-- Correct-answer preservation rate
-- Unresolved-after-correction count
+- Safe abstention count
+- Outcome counts
 
-### Behavior metrics
+## How scoring works
 
-- Answer status distribution
-- Raw label distribution
-- RealityCheck label distribution
-- Aggregate claim counts from Phase 6
+For each answer:
 
-## Important note
+1. Compute semantic similarity to TruthfulQA correct answers.
+2. Compute semantic similarity to TruthfulQA incorrect answers.
+3. Use the margin:
 
-This evaluator does not call any LLM and does not use the internet. It is deterministic by default. This is intentional, because the evaluation should be reproducible for a research paper.
+```text
+truth_margin = similarity_to_correct - similarity_to_incorrect
+```
+
+A corrected answer is judged better when it is closer to correct references and farther from incorrect references.
+
+This is not perfect, but it is far better than exact word matching.

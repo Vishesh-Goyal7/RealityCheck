@@ -91,13 +91,11 @@ Live_Console (In the codebase folder) :
 Evaluation 
     1) source venv/bin/activate
     2) Run the entire pipeline for a randomly selected set of questions of Phase 2. 
-    3) PYTHONPATH=src python src/evaluate_realitycheck.py \
-  --phase6-inputs \
-    ../Phase_6/outputs/model_claims_llama_with_corrected_answers.json \
-    ../Phase_6/outputs/model_claims_granite_with_corrected_answers.json \
-  --truthfulqa ../Phase_2/outputs/truthfulqa_eval_100.json \
-  --output-dir outputs \
-  --count-probable
+    3) python Evaluation/src/evaluate_realitycheck.py \
+  --phase6 Phase_6/outputs/model_claims_llama_with_corrected_answers.json Phase_6/outputs/model_claims_granite_with_corrected_answers.json \
+  --phase5 Phase_5/outputs/model_claims_llama_with_verification.json Phase_5/outputs/model_claims_granite_with_verification.json \
+  --truthfulqa Phase_2/data/truthfulqa_processed.json \ 
+  --output-dir Evaluation/outputs
 
 Phase 6 : 
     Purpose : IEEE Documentation 
